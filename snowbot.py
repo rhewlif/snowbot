@@ -686,7 +686,7 @@ class TweetComposer:
 
     def is_graph_needed(self):
         graphs = []
-        if self.summary['New snow'] >= 3 or abs(self.summary['Snow change'] >= 5):
+        if self.summary['New snow'] >= 3 or abs(self.summary['Snow change']) >= 5:
             graph_name = './' + self.today.strftime("%Y_%m_%d") + '_snowdepth_90450.png'
             if self.get_graph(graph_name):
                 graphs.append(graph_name)
@@ -942,8 +942,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True # to publish posts or not
     if debug is True:
-        start_date = date(2024, 11, 27)
-        end_date = date(2024, 11, 27)
+        start_date = date(2024, 12, 8)
+        end_date = date(2024, 12, 8)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
