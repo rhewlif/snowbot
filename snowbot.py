@@ -174,14 +174,14 @@ class DataProcessor:
         today_df = self.load_data()
         # new snow & snow change
         new_snow_df = today_df[(today_df['elementId'] == 'over_time(thickness_of_snowfall_amount P1D)') &
-                          (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' 00:00:00+00:00')]
+                               (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' 00:00:00+00:00')]
         new_snow = float(new_snow_df.iloc[0]['value']) if new_snow_df.size > 0 else -2.0
 
         snow_change = self.daily_snow_difference(today_df) if (new_snow <= 0) else None
 
         # snow thickness
         snow_thick_df = today_df[(today_df['elementId'] == 'surface_snow_thickness') &
-                            (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' ' + self.t1 + '+00:00')]
+                                 (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' ' + self.t1 + '+00:00')]
         snow_thick = float(snow_thick_df.iloc[0]['value']) if snow_thick_df.size > 0 else -2.0  # at time t1
 
         # calculate the last snow thickness if needed
@@ -349,8 +349,8 @@ class MonthlyTweetComposer:
             # remove the first from each of last month and add the first of this month
             # filter only last month's data
             trim30 = max_daily_df[((max_daily_df['referenceTime'].str.startswith(str(y)+'-' + last_month_pad)) &
-                                     (max_daily_df['referenceTime'] != str(y)+'-'+last_month_pad+'-01')) |
-                                    (max_daily_df['referenceTime'].str.startswith(str(y)+'-'+this_month+'-01'))]
+                                   (max_daily_df['referenceTime'] != str(y)+'-'+last_month_pad+'-01')) |
+                                  (max_daily_df['referenceTime'].str.startswith(str(y)+'-'+this_month+'-01'))]
             snow_days = trim30[trim30['value'] > 0]
             snow_days_cm = trim30['value'].sum()
             snow_days_count = snow_days.shape[0]
@@ -483,7 +483,6 @@ class TweetComposer:
             if str(self.summary['Last coverage time']) == self.today.strftime("%Y-%m-%d") + ' ' + self.t1 + '+00:00':
                 tweet += '.'
             else:
-                print(self.summary['Last coverage time'])
                 last_coverage_utc = datetime.strptime(self.summary['Last coverage time'], '%Y-%m-%d %H:%M:%S%z')
                 last_coverage_local = last_coverage_utc.astimezone(self.local)
                 last_coverage_hm = last_coverage_local.strftime("%H:%M")
@@ -563,7 +562,7 @@ class TweetComposer:
                     continue
 
                 if row['value'] >= self.summary['New snow']:
-                    print(f"Last time it snowed that much...on {dt.strftime('%B %d').replace(' 0', ' ')}{suffix(dt.day)}, {dt.strftime('%Y')} ({row['value']} cm).")
+                    self.timer.printer(f"Last time it snowed that much...on {dt.strftime('%B %d').replace(' 0', ' ')}{suffix(dt.day)}, {dt.strftime('%Y')} ({row['value']} cm).")
                     if (self.today-dt).days >= 5:
                         return f" The last time it snowed that much was on {dt.strftime('%B %d').replace(' 0', ' ')}{suffix(dt.day)}, {dt.strftime('%Y')} ({row['value']} cm)."
                     break
@@ -588,7 +587,7 @@ class TweetComposer:
     def on_this_date(self, max_daily_data):
         max_daily_data['referenceTime'] = max_daily_data['referenceTime'].str.replace(' 00:00:00+00:00','')
         these_days = max_daily_data[(max_daily_data['referenceTime'].str.endswith(f'{self.tomorrow.month:02}' + '-' +
-                                                                                 f'{self.tomorrow.day:02}'))]
+                                                                                  f'{self.tomorrow.day:02}'))]
         if these_days.size == 0:
             return None
 
@@ -694,9 +693,12 @@ class TweetComposer:
 
     def send_tweet(self,tweet, image):
         if image:
-            media = self.api.media_upload(filename=image)
-            self.timer.printer(f'Uploaded media. {media.media_id}')
-            daily_status = self.client.create_tweet(text=tweet, media_ids=[media.media_id])
+            image_ids = []
+            for i in image:
+                media = self.api.media_upload(filename=i)
+                self.timer.printer(f'Uploaded media. {media.media_id}')
+                image_ids.append(media.media_id)
+            daily_status = self.client.create_tweet(text=tweet, media_ids=image_ids)
         else:
             daily_status = self.client.create_tweet(text=tweet)
         log_tweet('Tweeted: ' + tweet)
@@ -730,9 +732,7 @@ class Skeet:
         self.url = self.pds + "/xrpc/com.atproto.server.createSession"
 
     def bsky_login_session(self):
-        resp = requests.post(self.url,
-            json={"identifier": self.handle, "password": self.password},
-        )
+        resp = requests.post(self.url, json={"identifier": self.handle, "password": self.password})
         resp.raise_for_status()
         return resp.json()
 
@@ -806,12 +806,12 @@ class Skeet:
             log_tweet(json.dumps(post, indent=2))
 
             resp = requests.post(self.pds + "/xrpc/com.atproto.repo.createRecord",
-                headers={"Authorization": "Bearer " + session["accessJwt"]},
-                json={
-                    "repo": session["did"],
-                    "collection": "app.bsky.feed.post",
-                    "record": post,
-                },
+                                 headers={"Authorization": "Bearer " + session["accessJwt"]},
+                                 json={
+                                     "repo": session["did"],
+                                     "collection": "app.bsky.feed.post",
+                                     "record": post,
+                                 },
             )
 
             log_tweet(json.dumps(resp.json(), indent=2))
@@ -942,8 +942,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True # to publish posts or not
     if debug is True:
-        start_date = date(2024, 12, 8)
-        end_date = date(2024, 12, 8)
+        start_date = date(2024, 12, 9)
+        end_date = date(2024, 12, 9)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
