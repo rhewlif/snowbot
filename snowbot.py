@@ -585,7 +585,7 @@ class TweetComposer:
 
 
     def on_this_date(self, max_daily_data):
-        max_daily_data['referenceTime'] = max_daily_data['referenceTime'].str.replace(' 00:00:00+00:00','')
+        max_daily_data['referenceTime'] = max_daily_data['referenceTime'].str.replace(' 00:00:00+00:00', '', regex=False)
         these_days = max_daily_data[(max_daily_data['referenceTime'].str.endswith(f'{self.tomorrow.month:02}' + '-' +
                                                                                   f'{self.tomorrow.day:02}'))]
         if these_days.size == 0:
