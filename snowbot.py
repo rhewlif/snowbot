@@ -1,5 +1,6 @@
 # requires python >= 3.6
 import os
+import re
 import requests
 from dotenv import load_dotenv
 import json
@@ -315,7 +316,7 @@ class MonthlyTweetComposer:
         last_month_mean = last_month_trim['mean'].iloc[0]
         last_month_max = last_month_trim['max'].iloc[0]
         mean_diff = last_month_mean - last_month_median
-        tweet = f"The mean #snow thickness in #{self.city} during {datetime.strptime(last_month_pad, '%m').strftime('%B')} ({last_month_mean} cm) was "
+        tweet = f"The mean snow thickness in #{self.city} during {datetime.strptime(last_month_pad, '%m').strftime('%B')} ({last_month_mean} cm) was "
 
         if mean_diff > 0:
             tweet += f"{int(mean_diff)} cm greater than "
@@ -359,7 +360,7 @@ class MonthlyTweetComposer:
                 snow_days_df = pd.concat([snow_days_df, new_row])
 
         if snow_days_count == 0:
-            tweet = f'It did not #snow in #{self.city} last month.'
+            tweet = f'It did not snow in #{self.city} last month.'
         else:
             tweet = f"Last month it snowed a total of {snow_days_cm} cm over {snow_days_count} {'day' if snow_days_count == 1 else 'days'}, "
 
@@ -454,14 +455,14 @@ class TweetComposer:
         if days_ago > 21 and (self.summary['Snow coverage'] >= 1 or  self.summary['Snow thickness now'] or  self.summary['Snow last thickness'] > 0):
             last_snowfree_date = self.today - timedelta(days=days_ago)
             self.timer.printer(f"Snow arrived back?...Yes!")
-            return u'\U0001F328\U0001F389 Snow has arrived back in #' + self.city + '! The last time any #snow was recorded was ' + str(days_ago) + ' days ago on ' + last_snowfree_date.strftime('%B %d').replace(' 0', ' ') + suffix(last_snowfree_date.day)+'.\n\n'
+            return u'\U0001F328\U0001F389 Snow has arrived back in #' + self.city + '! The last time any snow was recorded was ' + str(days_ago) + ' days ago on ' + last_snowfree_date.strftime('%B %d').replace(' 0', ' ') + suffix(last_snowfree_date.day)+'.\n\n'
 
     def summarize_today(self):
         if str(self.summary['Last coverage time']) < self.today.strftime("%Y-%m-%d") + ' ' + self.t1 + '+00:00':
             return 'No snow measurements have been found so far today.'
 
         if self.is_snow_free():
-            return f'There is currently no #snow in #{self.city}.'
+            return f'There is currently no snow in #{self.city}.'
 
         # 5 cm used as a threshold when things get subjective.
         if self.summary['Snow coverage'] > 0 and self.summary['Snow thickness now'] <= -1:
@@ -470,13 +471,13 @@ class TweetComposer:
             else:
                 tweet = 'The '
             if self.summary['Snow coverage'] == 4:
-                tweet += 'ground is completely #snow-covered '
+                tweet += 'ground is completely snow-covered '
             elif self.summary['Snow coverage'] == 3:
-                tweet += 'ground is mostly #snow-covered '
+                tweet += 'ground is mostly snow-covered '
             elif self.summary['Snow coverage'] == 2:
-                tweet += 'ground is roughly half #snow-covered '
+                tweet += 'ground is roughly half snow-covered '
             elif self.summary['Snow coverage'] == 1:
-                tweet += 'ground is mostly #snow-free '
+                tweet += 'ground is mostly snow-free '
             tweet += f'in #{self.city}'
 
             # check when coverage measurement made
@@ -498,16 +499,16 @@ class TweetComposer:
 
         if self.summary['Snow thickness now'] > -1:
             if self.summary['New snow'] > 0:
-                tweet = (u'\U0001F328 Following ~' + str(int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs, the #snow in #' + self.city + ' ')
+                tweet = (u'\U0001F328 Following ~' + str(int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs, the snow in #' + self.city + ' ')
             else:
                 if self.summary['Snow change'] < 0:
-                    tweet = u'\U0001F4C9 The #snow in #' + self.city + ' decreased by ~' + str(abs(self.summary['Snow change'])) + ' cm over the last 24hrs and '
+                    tweet = u'\U0001F4C9 The snow in #' + self.city + ' decreased by ~' + str(abs(self.summary['Snow change'])) + ' cm over the last 24hrs and '
                 elif self.summary['Snow change'] > 0:
-                    tweet = u'\U0001F4C8 The #snow in #' + self.city + ' increased by ~' + str(abs(self.summary['Snow change'])) + ' cm over the last 24hrs and '
+                    tweet = u'\U0001F4C8 The snow in #' + self.city + ' increased by ~' + str(abs(self.summary['Snow change'])) + ' cm over the last 24hrs and '
                 elif self.summary['Snow change'] == 0:
-                    tweet = u'\u2696\uFE0F The #snow level in #' + self.city + ' has remained unchanged over the last 24hrs and '
+                    tweet = u'\u2696\uFE0F The snow level in #' + self.city + ' has remained unchanged over the last 24hrs and '
                 else:
-                    tweet = f"The #snow in #{self.city} "
+                    tweet = f"The snow in #{self.city} "
 
             if self.summary['Snow thickness now'] > 0:
                 tweet += f"is currently {self.summary['Snow thickness now']} cm deep"
@@ -634,13 +635,13 @@ class TweetComposer:
             tweet_n = ' This time last year '
             if (thickness == -1 or thickness == 0) and coverage is not None:
                 if coverage == 4:
-                    tweet_n += 'the ground was completely #snow-covered.'
+                    tweet_n += 'the ground was completely snow-covered.'
                 elif coverage == 3:
-                    tweet_n += 'the ground was mostly #snow-covered.'
+                    tweet_n += 'the ground was mostly snow-covered.'
                 elif coverage == 2:
-                    tweet_n += 'the ground was roughly half #snow-covered.'
+                    tweet_n += 'the ground was roughly half snow-covered.'
                 elif coverage == 1:
-                    tweet_n += 'the ground was mostly #snow-free.'
+                    tweet_n += 'the ground was mostly snow-free.'
                 else:
                     tweet_n += f'{self.city} was snow-free.'
             elif thickness > 0:
@@ -677,10 +678,11 @@ class TweetComposer:
         # construct tweet until tweet limit reached
         for i in range(len(tweet_texts)):
             new_join = tweet_texts[:i + 1]
-            if len(''.join(new_join)) > limit:
+            if len(''.join(new_join).encode('utf-16-le'))/2 > limit:
                 new_join = tweet_texts[:i]
                 del tweet_texts[i]
 
+        self.timer.printer('Tweet length: ' + str(int(len(''.join(new_join).encode('utf-16-le'))/2)))
         return ''.join(new_join)
 
     def is_graph_needed(self):
@@ -754,7 +756,7 @@ class Skeet:
                 "Authorization": "Bearer " + access_token,
             },
             data=img_bytes,
-        )
+            )
         resp.raise_for_status()
         return resp.json()["blob"]
 
@@ -774,6 +776,26 @@ class Skeet:
             "$type": "app.bsky.embed.images",
             "images": images,
         }
+
+    def parse_tags(self, text):
+        spans = []
+        tag_regex = rb"[$|\W](#([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?))"
+        text_bytes = text.encode("UTF-8")
+        for m in re.finditer(tag_regex, text_bytes):
+            # need a better way to handle non-ascii chars in tags
+            byte_end = m.end() + 2 if m.group(1)[1:].decode("UTF-8") == 'Troms' else m.end()
+            tag = 'Tromsø' if m.group(1)[1:].decode("UTF-8") == 'Troms' else m.group(1)[1:].decode("UTF-8")
+            spans.append({
+                "index": {
+                    "byteStart": m.start(1),
+                    "byteEnd": byte_end
+                },
+                "features": [{
+                    "tag": tag,
+                    "$type": "app.bsky.richtext.facet#tag"
+                }]
+            })
+        return spans
 
     def send_skeet(self, tweets, image):
         session = self.bsky_login_session()
@@ -800,9 +822,15 @@ class Skeet:
                         "cid": parent["cid"],
                     }
                 }
+
+            facets = self.parse_tags(t)
+            if facets:
+                post["facets"] = facets
+
             if image:
                 alt_text = 'Chart showing the snow depth in ' + self.city + ' as of ' + self.today.strftime("%d %B, %Y").replace(' 0', ' ')
                 post["embed"] = self.upload_images(session["accessJwt"], image, alt_text)
+
             log_tweet(json.dumps(post, indent=2))
 
             resp = requests.post(self.pds + "/xrpc/com.atproto.repo.createRecord",
@@ -812,7 +840,7 @@ class Skeet:
                                      "collection": "app.bsky.feed.post",
                                      "record": post,
                                  },
-            )
+                                 )
 
             log_tweet(json.dumps(resp.json(), indent=2))
             resp.raise_for_status()
@@ -822,11 +850,10 @@ class Skeet:
             else:
                 parent = resp.json()
 
-
 def main(today):
     load_dotenv()
     timer = Timer()
-    timer.printer('Script initiated at ' + datetime.now().strftime("%H:%M:%S"))
+    timer.printer('\nScript initiated at ' + datetime.now().strftime("%H:%M:%S"))
 
     # Frost
     city = 'Tromsø'
@@ -942,8 +969,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True # to publish posts or not
     if debug is True:
-        start_date = date(2024, 12, 9)
-        end_date = date(2024, 12, 9)
+        start_date = date(2024, 12, 10)
+        end_date = date(2024, 12, 10)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
