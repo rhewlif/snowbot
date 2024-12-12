@@ -187,7 +187,7 @@ class DataProcessor:
 
         # calculate the last snow thickness if needed
         last_thick_df = today_df[(today_df['elementId'] == 'surface_snow_thickness') & (today_df['value'] >= -1)]
-        if snow_thick >= -1.0 or last_thick_df.size <= 0:
+        if last_thick_df.size <= 0:
             last_thickness = None
             last_thick_time = None
         else:
@@ -212,9 +212,9 @@ class DataProcessor:
             'Snow change': snow_change,
             'Snow thickness now': snow_thick,
             'Last snow thickness': last_thickness,
-            'Last snow thickness time': last_thick_time, # in UTC
+            'Last snow thickness time': last_thick_time,  # in UTC
             'Snow coverage': snow_coverage,
-            'Last coverage time': last_coverage_time # in UTC
+            'Last coverage time': last_coverage_time  # in UTC
         }
         self.timer.printer('Stats...')
         for key, value in summary.items():
@@ -458,7 +458,7 @@ class TweetComposer:
             return u'\U0001F328\U0001F389 Snow has arrived back in #' + self.city + '! The last time any snow was recorded was ' + str(days_ago) + ' days ago on ' + last_snowfree_date.strftime('%B %d').replace(' 0', ' ') + suffix(last_snowfree_date.day)+'.\n\n'
 
     def summarize_today(self):
-        if str(self.summary['Last coverage time']) < self.today.strftime("%Y-%m-%d") + ' ' + self.t1 + '+00:00':
+        if str(self.summary['Last coverage time']) < self.today.strftime("%Y-%m-%d") and str(self.summary['Last snow thickness time']) < self.today.strftime("%Y-%m-%d"):
             return 'No snow measurements have been found so far today.'
 
         if self.is_snow_free():
@@ -631,7 +631,7 @@ class TweetComposer:
         thickness = snow_last_year[0]
         coverage = snow_last_year[1]
         self.timer.printer(f'This time last year...{thickness} cm deep, coverage: {coverage}')
-        if thickness and coverage and thickness >= -1:
+        if thickness and (coverage or thickness >= -1):
             tweet_n = ' This time last year '
             if (thickness == -1 or thickness == 0) and coverage is not None:
                 if coverage == 4:
@@ -779,19 +779,15 @@ class Skeet:
 
     def parse_tags(self, text):
         spans = []
-        tag_regex = rb"[$|\W](#([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?))"
         text_bytes = text.encode("UTF-8")
-        for m in re.finditer(tag_regex, text_bytes):
-            # need a better way to handle non-ascii chars in tags
-            byte_end = m.end() + 2 if m.group(1)[1:].decode("UTF-8") == 'Troms' else m.end()
-            tag = 'Tromsø' if m.group(1)[1:].decode("UTF-8") == 'Troms' else m.group(1)[1:].decode("UTF-8")
+        for m in re.finditer(b'#', text_bytes):
             spans.append({
                 "index": {
-                    "byteStart": m.start(1),
-                    "byteEnd": byte_end
+                    "byteStart": m.start(0),
+                    "byteEnd": m.start(0) + len((u'#'+self.city).encode('UTF-8'))
                 },
                 "features": [{
-                    "tag": tag,
+                    "tag": self.city,
                     "$type": "app.bsky.richtext.facet#tag"
                 }]
             })
@@ -967,10 +963,10 @@ def main(today):
     timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S"))
 
 if __name__ == "__main__":
-    debug = True # to publish posts or not
+    debug = False  # to publish posts or not
     if debug is True:
-        start_date = date(2024, 12, 10)
-        end_date = date(2024, 12, 10)
+        start_date = date(2024, 12, 11)
+        end_date = date(2024, 12, 11)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
