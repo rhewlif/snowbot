@@ -422,30 +422,30 @@ class TweetComposer:
     def last_known_snow(self):
         last_thick_time_utc = datetime.strptime(self.summary['Last snow thickness time'], '%Y-%m-%d %H:%M:%S%z')
         last_thick_time_local = last_thick_time_utc.astimezone(self.local)
-        last_thick_time_hm = last_thick_time_local.strftime("%H:%M")
+        last_thick_time_hm = last_thick_time_local.strftime("%H%M")
         if last_thick_time_utc.date() == self.today:
             last_thick_day = 'today'
         else:
             last_thick_day = 'on ' + last_thick_time_local.strftime('%B %d').replace(' 0', ' ') + suffix(last_thick_time_local.day) + ', ' + last_thick_time_local.strftime('%Y')
 
         # if just snow coverage recorded (ie less than 0,5 cm deep)
-        if self.summary['Snow last thickness'] == 0 and self.summary['Snow coverage'] > 0:
+        if self.summary['Last snow thickness'] == 0 and self.summary['Snow coverage'] > 0:
             if int(self.summary['New snow']) > 0:
-                return u'\U0001F328 The last recorded snow thickness was less than 0.5 cm at ' + last_thick_time_hm + ' ' + last_thick_day + ' following ~' + str(
+                return u'\U0001F328 The last recorded snow thickness in #' + self.city + ' was less than 0.5 cm at ' + last_thick_time_hm + ' ' + last_thick_day + ' following ~' + str(
                     int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs.'
             else:
-                return f"The last recorded snow thickness was less than 0.5 cm at {last_thick_time_hm} {last_thick_day}."
+                return f'The last recorded snow thickness in #' + self.city + f' was less than 0.5 cm at {last_thick_time_hm} {last_thick_day}.'
 
-        elif self.summary['Snow last thickness'] > 0:
+        elif self.summary['Last snow thickness'] > 0:
             if int(self.summary['New snow']) > 0:
-                return u'\U0001F328 The snow is roughly ' + str(self.summary['Snow last thickness']) + ' cm deep this morning after '+str(int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs.'
+                return u'\U0001F328 The snow is roughly ' + str(self.summary['Last snow thickness']) + ' cm deep in #' + self.city + ' this morning after '+str(int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs.'
             else:
-                return f"The last recorded snow thickness was {self.summary['Snow last thickness']} cm at {last_thick_time_hm} {last_thick_day}."
+                return f"The last recorded snow thickness in #" + self.city + f" was {self.summary['Last snow thickness']} cm at {last_thick_time_hm} {last_thick_day}."
         else:
             return ''
 
     def is_snow_free(self):
-        if self.summary['Snow coverage'] > 0 or self.summary['Snow thickness now'] > 0 or self.summary['Last snow thickness'] is not None:
+        if self.summary['Snow coverage'] > 0 or self.summary['Snow thickness now'] > 0 or (self.summary['Last snow thickness'] is not None and self.summary['Last snow thickness'] != -1):
             return False
         else:
             return True
@@ -464,8 +464,10 @@ class TweetComposer:
         if self.is_snow_free():
             return f'There is currently no snow in #{self.city}.'
 
-        # 5 cm used as a threshold when things get subjective.
-        if self.summary['Snow coverage'] > 0 and self.summary['Snow thickness now'] <= -1:
+        if self.summary['Last snow thickness'] is not None and (self.summary['Snow thickness now'] is None or self.summary['Snow thickness now'] == -2):
+            return self.last_known_snow()
+
+        elif self.summary['Snow coverage'] > 0 and self.summary['Snow thickness now'] <= -1:
             if self.summary['New snow'] > 0:
                 tweet = u'\U0001F328 Following ~'+str(int(self.summary['New snow']))+' cm of fresh snowfall in the last ~24hrs, the '
             else:
@@ -493,9 +495,6 @@ class TweetComposer:
                     last_coverage_day = 'on ' + last_coverage_local.strftime('%B %d').replace(' 0', ' ') + suffix(last_coverage_local.day) + ', ' + last_coverage_local.strftime('%Y')
                 tweet += f' according to the last measurement taken at {last_coverage_hm} {last_coverage_day}.'
             return tweet
-
-        elif self.summary['Last snow thickness'] is not None and self.summary['Snow coverage'] is None and self.summary['Snow thickness now'] is None:
-            return self.last_known_snow()
 
         if self.summary['Snow thickness now'] > -1:
             if self.summary['New snow'] > 0:
@@ -591,8 +590,10 @@ class TweetComposer:
                                                                                   f'{self.tomorrow.day:02}'))]
         if these_days.size == 0:
             return None
-
         these_snow_days = these_days[(these_days['value'] > 0)]
+
+        if these_snow_days.size == 0:
+            return None
         these_snow_days = these_snow_days.sort_values(by=['referenceTime'], ascending=False, ignore_index=True)
 
         # last snowed before the last decade
@@ -849,7 +850,7 @@ class Skeet:
 def main(today):
     load_dotenv()
     timer = Timer()
-    timer.printer('\nScript initiated at ' + datetime.now().strftime("%H:%M:%S"))
+    timer.printer('\nScript initiated at ' + datetime.now().strftime("%H:%M:%S, %d %B, %Y"))
 
     # Frost
     city = 'Tromsø'
@@ -963,10 +964,10 @@ def main(today):
     timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S"))
 
 if __name__ == "__main__":
-    debug = False  # to publish posts or not
+    debug = True  # to publish posts or not
     if debug is True:
-        start_date = date(2024, 12, 11)
-        end_date = date(2024, 12, 11)
+        start_date = date(2024, 12, 19)
+        end_date = date(2024, 12, 19)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
