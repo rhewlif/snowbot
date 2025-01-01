@@ -169,7 +169,7 @@ class DataProcessor:
             snow_change = daily_df['value'].iloc[1] - max(0, daily_df['value'].iloc[0])
             return round(snow_change, 1)
         else:
-            return False
+            return None
 
     def today_summary(self):
         today_df = self.load_data()
@@ -177,8 +177,7 @@ class DataProcessor:
         new_snow_df = today_df[(today_df['elementId'] == 'over_time(thickness_of_snowfall_amount P1D)') &
                                (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' 00:00:00+00:00')]
         new_snow = float(new_snow_df.iloc[0]['value']) if new_snow_df.size > 0 else -2.0
-
-        snow_change = self.daily_snow_difference(today_df) if (new_snow <= 0) else None
+        snow_change = self.daily_snow_difference(today_df)
 
         # snow thickness
         snow_thick_df = today_df[(today_df['elementId'] == 'surface_snow_thickness') &
@@ -329,11 +328,11 @@ class MonthlyTweetComposer:
         max_rank = trim30_rank_max[(trim30_rank_max['referenceTime'] == last1)].values.tolist()
         joint_years = len(trim30_rank_max[(trim30_rank_max['max'] == last_month_max)].values.tolist())
 
-        newline = ord('\n')
-        tweet += f'{newline}{newline}The max snow depth last month ({last_month_max} cm) ranks '
+        tweet += f'\n\nThe max snow depth last month ({last_month_max} cm) ranks '
         if joint_years > 1:
             tweet += 'joint '
-        tweet += f"{int(max_rank[0][4])}{suffix(max_rank[0][4])} since {last_month.year - 30}, with the 3 deepest {datetime.strptime(last_month_pad, '%m').strftime('%b')} snowpacks being {trim30_rank_max['referenceTime'].iloc[0][0:4]} ({trim30_rank_max['max'].iloc[0]} cm), {trim30_rank_max['referenceTime'].iloc[1][0:4]} ({trim30_rank_max['max'].iloc[1]} cm) and {trim30_rank_max['referenceTime'].iloc[2][0:4]} ({trim30_rank_max['max'].iloc[2]} cm)."
+        tweet += f"{int(max_rank[0][4])}{suffix(int(max_rank[0][4]))} since {last_month.year - 30}, with the 3 deepest {datetime.strptime(last_month_pad, '%m').strftime('%b')} snowpacks being {trim30_rank_max['referenceTime'].iloc[0][0:4]} ({trim30_rank_max['max'].iloc[0]} cm), {trim30_rank_max['referenceTime'].iloc[1][0:4]} ({trim30_rank_max['max'].iloc[1]} cm) and {trim30_rank_max['referenceTime'].iloc[2][0:4]} ({trim30_rank_max['max'].iloc[2]} cm)."
+        self.timer.printer(tweet)
         return tweet
 
     def compile_monthly_summary_snowfall(self, max_daily_df):
@@ -382,6 +381,7 @@ class MonthlyTweetComposer:
             tweet += u'\U0001F948'
         elif snow_days_df['rank'].iloc[this_year_rank] == 3:
             tweet += u'\U0001F949'
+        self.timer.printer(tweet)
         return tweet
 
 
@@ -688,7 +688,8 @@ class TweetComposer:
 
     def is_graph_needed(self):
         graphs = []
-        if self.summary['New snow'] >= 3 or abs(self.summary['Snow change']) >= 5:
+        snow_change = 0 if self.summary['Snow change'] is None else self.summary['Snow change']
+        if self.summary['New snow'] >= 3 or abs(snow_change) >= 5:
             graph_name = './' + self.today.strftime("%Y_%m_%d") + '_snowdepth_90450.png'
             if self.get_graph(graph_name):
                 graphs.append(graph_name)
@@ -850,7 +851,7 @@ class Skeet:
 def main(today):
     load_dotenv()
     timer = Timer()
-    timer.printer('\nScript initiated at ' + datetime.now().strftime("%H:%M:%S, %d %B, %Y"))
+    timer.printer('Script initiated at ' + datetime.now().strftime("%H:%M:%S, %d %B, %Y"))
 
     # Frost
     city = 'Tromsø'
@@ -966,8 +967,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True  # to publish posts or not
     if debug is True:
-        start_date = date(2024, 12, 19)
-        end_date = date(2024, 12, 19)
+        start_date = date(2025, 1, 1)
+        end_date = date(2025, 1, 1)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
