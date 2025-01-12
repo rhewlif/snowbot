@@ -576,13 +576,10 @@ class TweetComposer:
             monthly_trim = monthly_trim.sort_values(by=['referenceTime'], ascending=False)  # order by date desc
 
             for index, row in monthly_trim.iterrows():
-                self.timer.printer(
-                    f"Last time it was deeper during {pd.to_datetime(int(this_month), format='%m').strftime('%B')}...was in {row['referenceTime'][0:4]} ({row['max']} cm).")
                 if float(row['max']) > self.summary['Snow thickness now'] and (self.today.year - int(row['referenceTime'][0:4])) < 3:
                     break
                 elif float(row['max']) > self.summary['Snow thickness now'] and (self.today.year - int(row['referenceTime'][0:4])) >= 3:
                     return f" The last time snow in {self.city} was deeper during {pd.to_datetime(int(this_month), format='%m').strftime('%B')} was in {row['referenceTime'][0:4]} ({row['max']} cm)."
-
 
     def on_this_date(self, max_daily_data):
         max_daily_data['referenceTime'] = max_daily_data['referenceTime'].str.replace(' 00:00:00+00:00', '', regex=False)
@@ -681,7 +678,7 @@ class TweetComposer:
             new_join = tweet_texts[:i + 1]
             if len(''.join(new_join).encode('utf-16-le'))/2 > limit:
                 new_join = tweet_texts[:i]
-                del tweet_texts[i]
+                tweet_texts[i] = ''
 
         self.timer.printer('Tweet length: ' + str(int(len(''.join(new_join).encode('utf-16-le'))/2)))
         return ''.join(new_join)
