@@ -173,11 +173,10 @@ class DataProcessor:
 
     def today_summary(self):
         today_df = self.load_data()
-        # new snow & snow change
+        # new snow
         new_snow_df = today_df[(today_df['elementId'] == 'over_time(thickness_of_snowfall_amount P1D)') &
                                (today_df['referenceTime'] == self.today.strftime("%Y-%m-%d") + ' 00:00:00+00:00')]
         new_snow = float(new_snow_df.iloc[0]['value']) if new_snow_df.size > 0 else -2.0
-        snow_change = self.daily_snow_difference(today_df)
 
         # snow thickness
         snow_thick_df = today_df[(today_df['elementId'] == 'surface_snow_thickness') &
@@ -195,6 +194,11 @@ class DataProcessor:
             last_thick_time = first_row['referenceTime']
             last_thickness = first_row['value']
 
+        # snow change
+        if str(last_thick_time) < self.today.strftime("%Y-%m-%d"):
+            snow_change = None
+        else:
+            snow_change = self.daily_snow_difference(today_df)
 
         # snow coverage
         coverage_df = today_df[(today_df['elementId'] == 'snow_coverage_type')]
@@ -964,8 +968,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True  # to publish posts or not
     if debug is True:
-        start_date = date(2025, 1, 1)
-        end_date = date(2025, 1, 1)
+        start_date = date(2025, 5, 13)
+        end_date = date(2025, 5, 13)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
