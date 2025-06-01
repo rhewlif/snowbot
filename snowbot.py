@@ -3,7 +3,6 @@ import os
 import re
 import requests
 from dotenv import load_dotenv
-import json
 from datetime import date, timedelta, datetime, timezone
 import tweepy
 import pandas as pd
@@ -33,8 +32,8 @@ def readable_list(seq):
 def log_tweet(message):
     logfile = './log.txt'
     f = open(logfile, 'a', encoding="utf-8")
-    newline = ord('\n')
-    f.write(f"{newline}{datetime.now().strftime('%d/%m/%Y %H:%M:%S')}, {message}")
+    newline = '\n'
+    f.write(f"{newline}{datetime.now().strftime('%d/%m/%Y %H:%M:%S')} : {message}")
     f.close()
 
 class Timer:
@@ -830,7 +829,7 @@ class Skeet:
                 alt_text = 'Chart showing the snow depth in ' + self.city + ' as of ' + self.today.strftime("%d %B, %Y").replace(' 0', ' ')
                 post["embed"] = self.upload_images(session["accessJwt"], image, alt_text)
 
-            log_tweet(json.dumps(post, indent=2))
+            #log_tweet(json.dumps(post, indent=2))
 
             resp = requests.post(self.pds + "/xrpc/com.atproto.repo.createRecord",
                                  headers={"Authorization": "Bearer " + session["accessJwt"]},
@@ -841,7 +840,7 @@ class Skeet:
                                  },
                                  )
 
-            log_tweet(json.dumps(resp.json(), indent=2))
+            #log_tweet(json.dumps(resp.json(), indent=2))
             resp.raise_for_status()
             if i == 0:
                 root = resp.json()
@@ -874,8 +873,9 @@ def main(today):
     summaries = []
     if today.day == 1:
         last_month_tweet_snowpack = monthly_composer.compile_monthly_summary_snowpack(max_monthly_historic_df)
-        last_month_tweet_snowfall = monthly_composer.compile_monthly_summary_snowfall(max_daily_df)
-        summaries = [last_month_tweet_snowpack, last_month_tweet_snowfall]
+        if last_month_tweet_snowpack is not None:
+            last_month_tweet_snowfall = monthly_composer.compile_monthly_summary_snowfall(max_daily_df)
+            summaries = [last_month_tweet_snowpack, last_month_tweet_snowfall]
 
     # Process today's data first
     processor = DataProcessor(downloader.get_dataset_options()['today']['filename'], today, t1, timer)
@@ -903,12 +903,26 @@ def main(today):
     snow_free = composer.is_snow_free()
     timer.printer(f'Snow free: {snow_free}')
 
+    # do monthly tweet first
+    if debug is False:
+        bsky = Skeet(today, city)
+
+        if today.day == 1 and summaries:
+            composer.send_summary_tweets(summaries)
+            bsky.send_skeet(summaries, None)
+    else:
+        if summaries:
+            timer.printer('Debug mode on - summary tweets not posted.')
+        else:
+            timer.printer('Debug mode on - summary tweets empty and not posted.')
+
     # Don't tweet if consecutive days of no snow
     if snow_free and snow_days_ago > 1:
         if debug is True:
             timer.printer(f"{city} has been snow-free for {snow_days_ago} days - no tweet made")
         else:
             log_tweet(f"Daily tweet not sent - {city} is snow-free.")
+        timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S") + '\n')
         exit()
 
     # Check if snow has arrived back... (relevant at start of season)
@@ -950,12 +964,6 @@ def main(today):
     timer.printer(tweet)
 
     if debug is False:
-        bsky = Skeet(today, city)
-
-        # do monthly tweet first
-        if today.day == 1 and summaries:
-            composer.send_summary_tweets(summaries)
-            bsky.send_skeet(summaries, None)
         if tweet is not None:
             graph = composer.is_graph_needed()
             composer.send_tweet(tweet, graph)
@@ -963,13 +971,13 @@ def main(today):
     else:
         timer.printer('Debug mode on - tweets not posted.')
 
-    timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S"))
+    timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S") + '\n')
 
 if __name__ == "__main__":
-    debug = True  # to publish posts or not
+    debug = True     # to publish posts or not
     if debug is True:
-        start_date = date(2025, 5, 13)
-        end_date = date(2025, 5, 13)
+        start_date = date(2024, 7, 1)
+        end_date = date(2024, 7, 1)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
