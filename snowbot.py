@@ -163,9 +163,11 @@ class DataProcessor:
     def daily_snow_difference(self, df):
         daily_df = df[(df['elementId'] == 'surface_snow_thickness') &
                       (df['referenceTime'].astype(str).str.endswith(self.t1 + '+00:00'))]
-        if daily_df.shape[0] == 2:
+        if daily_df['value'].iloc[1] == -1 and   daily_df['value'].iloc[0] == -1:
+            return None
+        elif daily_df.shape[0] == 2:
             # to avoid -1 values when snow free day before
-            snow_change = daily_df['value'].iloc[1] - max(0, daily_df['value'].iloc[0])
+            snow_change = daily_df['value'].iloc[1] - daily_df['value'].iloc[0]
             return round(snow_change, 1)
         else:
             return None
@@ -453,6 +455,13 @@ class TweetComposer:
         else:
             return True
 
+    def is_official_snow_free(self):
+        # probably need a better way to distinguish start and end of season 'official' snow flag
+        if self.today.month > 6 or (self.summary['Snow thickness now'] > 0 or self.summary['Snow change'] is None or (self.summary['Last snow thickness'] is not None and self.summary['Last snow thickness'] != -1)):
+            return False
+        else:
+            return True
+
     def snow_arrived_back(self, days_ago):
         # Set to 3 week delay so as not to repeat the message too often e.g. in early season
         if days_ago > 21 and (self.summary['Snow coverage'] >= 1 or  self.summary['Snow thickness now'] or  self.summary['Snow last thickness'] > 0):
@@ -463,6 +472,22 @@ class TweetComposer:
     def summarize_today(self):
         if str(self.summary['Last coverage time']) < self.today.strftime("%Y-%m-%d") and str(self.summary['Last snow thickness time']) < self.today.strftime("%Y-%m-%d"):
             return 'No snow measurements have been found so far today.'
+
+        if self.is_official_snow_free():
+            tweet = f'{self.city} is officially snow-free with the snow depth now at 0 cm'
+            if self.summary['Snow coverage'] > 0:
+                tweet += ' and the '
+                if self.summary['Snow coverage'] == 4:
+                    tweet += 'ground completely snow-covered.'
+                elif self.summary['Snow coverage'] == 3:
+                    tweet += 'ground mostly snow-covered.'
+                elif self.summary['Snow coverage'] == 2:
+                    tweet += 'ground roughly half snow-covered.'
+                elif self.summary['Snow coverage'] == 1:
+                    tweet += 'ground only partially snow-covered.'
+            else:
+                tweet += '.'
+            return tweet
 
         if self.is_snow_free():
             return f'There is currently no snow in #{self.city}.'
@@ -537,7 +562,7 @@ class TweetComposer:
         date_ago = self.today - timedelta(days=days_ago)
         self.timer.printer(f"Last snow-free {days_ago} days ago")
         if days_ago >= 14:
-            return f" The last time it was snow-free in {self.city} was {days_ago} days ago on {date_ago.strftime('%B %d').replace(' 0', ' ')}{suffix(date_ago.day)}."
+            return f" The last time the ground was free of snow in {self.city} was {days_ago} days ago on {date_ago.strftime('%B %d').replace(' 0', ' ')}{suffix(date_ago.day)}."
 
     def last_snowfall(self, max_daily_data):
         max_daily_data = max_daily_data.sort_values(by=['referenceTime'], ascending=False)  # order by date desc
@@ -974,10 +999,10 @@ def main(today):
     timer.printer('Finished at ' + datetime.now().strftime("%H:%M:%S") + '\n')
 
 if __name__ == "__main__":
-    debug = True     # to publish posts or not
+    debug = True      # to publish posts or not
     if debug is True:
-        start_date = date(2024, 7, 1)
-        end_date = date(2024, 7, 1)
+        start_date = date(2025, 5,18)
+        end_date = date(2025, 5, 20)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
