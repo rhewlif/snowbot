@@ -163,11 +163,11 @@ class DataProcessor:
     def daily_snow_difference(self, df):
         daily_df = df[(df['elementId'] == 'surface_snow_thickness') &
                       (df['referenceTime'].astype(str).str.endswith(self.t1 + '+00:00'))]
-        if daily_df['value'].iloc[1] == -1 and   daily_df['value'].iloc[0] == -1:
+        if daily_df['value'].iloc[1] == -1 and daily_df['value'].iloc[0] == -1:
             return None
         elif daily_df.shape[0] == 2:
             # to avoid -1 values when snow free day before
-            snow_change = daily_df['value'].iloc[1] - daily_df['value'].iloc[0]
+            snow_change = daily_df['value'].iloc[1] - max(0,daily_df['value'].iloc[0])
             return round(snow_change, 1)
         else:
             return None
@@ -525,7 +525,8 @@ class TweetComposer:
             return tweet
 
         if self.summary['Snow thickness now'] > -1:
-            if self.summary['New snow'] > 0:
+            # Sometimes New Snow is not accurate and can be higher than actual snowfall. In this case, better to focus on the change in snow thickness and current snow thickness than the new snow value.
+            if self.summary['New snow'] > 0 and (self.summary['Snow change'] - self.summary['New snow'] < 2):
                 tweet = (u'\U0001F328 Following ~' + str(int(self.summary['New snow'])) + ' cm of fresh snowfall in the last ~24hrs, the snow in #' + self.city + ' ')
             else:
                 if self.summary['Snow change'] < 0:
@@ -1001,8 +1002,8 @@ def main(today):
 if __name__ == "__main__":
     debug = True      # to publish posts or not
     if debug is True:
-        start_date = date(2025, 5,18)
-        end_date = date(2025, 5, 20)
+        start_date = date(2026, 4,24)
+        end_date = date(2026, 4, 24)
         delta = timedelta(days=1)
 
         while start_date <= end_date:
