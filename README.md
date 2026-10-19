@@ -1,5 +1,6 @@
 # snowbot
-A bot tweeting daily snow information on [X](https://x.com/TromsoSnow) and [Bluesky](https://bsky.app/profile/tromsosnow.bsky.social)
+A bot tweeting daily snow information on <strike>[X](https://x.com/TromsoSnow) and</strike> [Bluesky](https://bsky.app/profile/tromsosnow.bsky.social). 
+(Currently not tweeting on X due to the discontinuation of the free API tier)
 
 Utilises the [Frost API](https://frost.met.no/index.html) from the Norwegian Meteorologisk Institutt to obtain snow data.
 
